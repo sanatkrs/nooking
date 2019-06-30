@@ -1,11 +1,15 @@
 package com.booking.sample.come.nooking.sample;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.OutputType;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.io.FileHandler;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -13,12 +17,16 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import com.Appointment.testBase.BrowserFactory;
 import com.Appointment.testBase.TestBase;
 
+import net.sourceforge.tess4j.ITesseract;
+import net.sourceforge.tess4j.Tesseract;
+import net.sourceforge.tess4j.TesseractException;
+
 public class appointment extends TestBase {
 	
 	static WebDriver driver;
 	static Select select ;
 	
-	public static void main(String[] args) throws InterruptedException, IOException {
+	public static void main(String[] args) throws InterruptedException, IOException, TesseractException {
 		System.out.println(System.getProperty("os.name"));
 
 		bookApointment();
@@ -27,25 +35,55 @@ public class appointment extends TestBase {
 		
 	}
 	
-	public static void bookApointment() throws InterruptedException, IOException {
+	public static void bookApointment() throws InterruptedException, IOException, TesseractException {
 		
 		driver = BrowserFactory.startBrowser();
 		driver.get("https://www.vfsglobalservices-germany.com/Global-Appointment/Account/");
 
 		driver.findElement(By.id("EmailId")).sendKeys("sanatkumarsingh@yahoo.co.in");
 		driver.findElement(By.id("Password")).sendKeys("SHanat@22");
-		new WebDriverWait(driver,60).until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//a[text()='Schedule Appointment']")));
+		File src = driver.findElement(By.id("CaptchaImage")).getScreenshotAs(OutputType.FILE);
 		
-		Parent :for(int k=0;k<200;k++) {
+		String path = System.getProperty("user.dir")+"/screenshots/captcha.png";
+		
+		FileHandler.copy(src, new File(path));
+		
+		ITesseract image = new Tesseract();
+		Thread.sleep(5000);
+		
+		String imageText = image.doOCR(new File(path));
+		
+		imageText = imageText.replaceAll("[^a-zA-Z]", "");
+		
+		System.out.println(imageText);
+		driver.findElement(By.xpath("//input[@name='CaptchaInputText']")).sendKeys(imageText);
+		driver.findElement(By.xpath("//input[@type='submit']")).click();
+		
+		new WebDriverWait(driver,60).until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//a[text()='Schedule Appointment']")));
+	
+		Parent :for(int k=0;k<300;k++) {
 			try {
 			System.out.println("check number " + k);
 		driver.findElement(By.xpath("//a[text()='Schedule Appointment']")).click();
 		select = new Select(driver.findElement(By.id("VisaCategoryId")));
-		select.selectByVisibleText("Job Seeker Visa");//Family Reunion Visa//
+		select.selectByIndex(3);//Family Reunion Visa//
 		select = new Select(driver.findElement(By.id("SubVisaCategoryId")));
-		select.selectByVisibleText("Job Seeker");//Family Reunion//
-		Thread.sleep(3000);
+		select.selectByIndex(1);//Family Reunion//
+		Thread.sleep(2000);
+		Actions action = new Actions(driver);
+		action.moveToElement(driver.findElement(By.xpath("//div[@id='dvEarliestDateLnk']/span"))).click();
 		
+		String name = driver.findElement(By.xpath("//tr[@id='trNonPrime']/td/label[2]")).getCssValue("color");
+		String name1 = driver.findElement(By.xpath("//tr[@id='trNonPrime']/td")).getCssValue("display");
+		if(name1.equals("none") || name1.equals("table-cell")) {
+			
+			System.out.println("No Slot Available");
+			
+		}
+		else {
+		
+		
+		System.out.println("color is " + name + "===" + name1);
 		new WebDriverWait(driver,60).until(ExpectedConditions.visibilityOfElementLocated(By.id("btnContinue")));
 		driver.findElement(By.id("btnContinue")).sendKeys(Keys.ENTER);
 	
@@ -136,14 +174,15 @@ public class appointment extends TestBase {
 				
 			}
 			}
-		
+			}
 		
 	}
 		catch(Exception e) {
 			
-			System.out.println(e.getStackTrace());
+			System.out.println(e.getMessage());
 			continue;
 		}
+			
 	}
 		driver.quit();
 		shutdown();
